@@ -1,5 +1,9 @@
 const express = require('express')
 const router = express.Router() // makes a router
+const bcrypt = require('bcryptjs')
+
+//User Model
+const User = require('../models/User')
 
 //login page
 router.get('/login', (req, res) => res.render('login'))
@@ -48,7 +52,58 @@ router.post('/register', (req, res) => {
             password2
         })
     } else {
-        res.send('pass')
+        //validation passes
+
+        //finds one match - returns promise
+        User.findOne({
+                email: email
+            })
+            .then(user => {
+                if (user) {
+                    // user exists, rerender page with error 
+                    errors.push({
+                        msg: 'Email is already registered'
+                    })
+                    res.render('register', {
+                        //keeps these values in their fields when it rerenders
+                        errors,
+                        name,
+                        email,
+                        password,
+                        password2
+                    })
+                } else {
+                    //create new user
+                    const newUser = new User({
+                        name,
+                        email,
+                        password
+                    })
+                    //keep in mind, the above is short hand for this:
+                    // const newUser = new User({
+                    //     name: name,
+                    //     email: email,
+                    //     password: password
+                    // })
+                    // , same thing for all the above 
+
+                    //Hash Password
+                    bcrypt.genSalt(10, (err, salt) =>
+                        bcrypt.hash(newUser.password, salt, (err, hash) => {
+                            if (err) throw err
+                            // set password to hash
+                            newUser.password = hash
+                            // save to database, returns a promise 
+                            newUser.save()
+                                .then(user => {
+                                    res.redirect('/login')
+                                })
+                                .catch(err => console.log(err))
+                        }))
+
+
+                }
+            })
     }
 })
 
